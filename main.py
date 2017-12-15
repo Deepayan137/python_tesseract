@@ -41,27 +41,53 @@ def image_to_text(image_path, psm):
 		return text
                                          
 def text_to_image(text, outpath):
-	image = np.ones((150, 200,3), np.uint8)*255
+	image = np.ones((60, 180,3), np.uint8)*255
 	font = cv2.FONT_HERSHEY_SIMPLEX
-	cv2.putText(image, text, (20,50), font, 1,(0,0,0), 2, cv2.LINE_AA)
+	textsize = cv2.getTextSize(text, font, 1, 2)[0]
+	textX = (image.shape[1] - textsize[0]) // 2
+	textY = (image.shape[0] + textsize[1]) // 2
+
+	cv2.putText(image, text, (textX, textY), font, 1,(0,0,0), 2, cv2.LINE_AA)
+	image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 	cv2.imwrite('%s/%s.jpg'%(outpath, text), image)
 	
 def generate_strings(num):
+
 	words = open('/etc/dictionaries-common/words').readlines()
-	words = [word for word in words]
-	rand = randint(0,len(words))
-	def return_nearest():
+	words = [word.rstrip() for word in words]
+	random_words = ['running', 'chat', 'premise', 'program', 'acting', 'beauty', 'blame', 'write',
+					'sing', 'rise']
+	def return_nearest(query):
+
+		rand = randint(0,len(words))
+		start, stop = rand, len(words)
 		nearest = []
-		rword = words[rand]
-		words.remove(rword)	
-		for word in words:
-			if 2<= lev(word, rword)<=5:
-				nearest.extend(word.rsplit())
-				if len(nearest)>=num:
-					break
+		if query in words:
+			print(query)
+			i = start
+			while(i<=stop):
+				if i == stop:
+					start, stop =0, rand -1
+					i = start
+					
+					continue
+				dist= lev(words[i], query)
+				if 1<= dist <= 3:
+					# print('%s %s %s %s'%(query, words[i], str(dist), i))
+					nearest.append(words[i].rstrip())
+					if len(nearest) >= num:
+						break
+				i+=1
+					
 			
-		return nearest
-	return return_nearest()
+			return nearest
+		else:
+			pdb.set_trace()
+	collection = []
+	for word in random_words:
+		collection.extend(return_nearest(word))
+	return collection
+
 
 def gmkdir(path):
     if not os.path.exists(path):
@@ -87,19 +113,22 @@ if __name__ == "__main__":
 	psm = str(args["psm"])
 	gmkdir(outpath)
 
-	image_path = os.path.join(outpath,'output/')
+	# image_path = os.path.join(outpath,'output/')
+	image_path = outpath
 	# try:
 		# print(image_to_text(image_path, lang=lang,  psm=str(psm)))
-	num = 100
+	num = 20
 	num_samples = 1000
 	words = generate_strings(num)
-	print(len(words))
-	for word in words:
-		text_to_image(word, outpath)
-	augment(outpath, num_samples)
+	
+	# print(len(words))
+	# for word in words:
+	# 	text_to_image(word, outpath)
+	# augment(outpath, num_samples)
 	images = os.listdir(image_path)
 	image_locs = list(map(lambda x: image_path + x , images))
 	image_locs = rename(image_locs)
+	print("processing.....")
 	for image in image_locs[:-1]:
 		image_name = (os.path.split(image)[1])
 		text ='%s  %s'%(image_name, image_to_text(image, psm))
@@ -108,3 +137,4 @@ if __name__ == "__main__":
 		with open('predictions.txt', 'a') as fp:
 			fp.write('%s\n'%(text).rstrip())
 	
+	print("finished")
